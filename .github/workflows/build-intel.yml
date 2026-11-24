@@ -1,0 +1,76 @@
+name: build-self-intel
+
+# 绾嚜鐮旂増锛歋creenSender(9300 瑙︽帶 + 9200 鐢婚潰) + BroadcastExtension(H.264)
+# 涓嶄緷璧?WDA / Panda / ATHelper锛屾渶浣庣郴缁?iOS 12.0
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ScreenSender/**'
+      - 'BroadcastExtension/**'
+      - 'Shared/**'
+      - 'WdaRelay/SmRelayServer.swift'
+      - 'WdaRelay/SmTouchBridge.swift'
+      - 'project.yml'
+      - '.github/workflows/build-self.yml'
+
+jobs:
+  build:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 鐜淇℃伅
+        run: |
+          xcodebuild -version
+          sw_vers
+
+      - name: 瀹夎 xcodegen
+        run: brew install xcodegen
+
+      - name: 鐢熸垚宸ョ▼
+        run: xcodegen generate
+
+      - name: 缂栬瘧 ScreenSender锛堝惈 BroadcastExtension锛?        run: |
+          set -o pipefail
+          xcodebuild -project ScreenSender.xcodeproj \
+            -target ScreenSender -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            SYMROOT="$PWD/out" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            IPHONEOS_DEPLOYMENT_TARGET=12.0 \
+            build 2>&1 | tail -60
+
+      - name: 缁勮鏈鍚?IPA
+        run: |
+          set -e
+          APP=$(find out -name 'ScreenSender.app' -type d | head -1)
+          echo "app=$APP"
+          test -d "$APP"
+          mkdir -p dist/Payload
+          cp -R "$APP" dist/Payload/
+          # 鍘绘帀绛惧悕娈嬬暀涓?dSYM锛屾柟渚?Sideloadly 鐩存帴绛?          find dist/Payload -name '_CodeSignature' -type d -prune -exec rm -rf {} + || true
+          find dist/Payload -name '*.dSYM' -type d -prune -exec rm -rf {} + || true
+          find dist/Payload -name 'embedded.mobileprovision' -delete || true
+          cd dist && zip -qry 绁炵洰鎶曞睆_绾嚜鐮?ipa Payload
+          ls -lh 绁炵洰鎶曞睆_绾嚜鐮?ipa
+
+      - name: 鏍￠獙浜х墿
+        run: |
+          set -e
+          IPA=dist/绁炵洰鎶曞睆_绾嚜鐮?ipa
+          unzip -l "$IPA" | head -40
+          APP=dist/Payload/ScreenSender.app
+          echo "--- 涓荤▼搴忔渶浣庣郴缁?---"
+          otool -l "$APP/ScreenSender" | grep -A3 LC_BUILD_VERSION | head -8 || true
+          echo "--- 鎵╁睍 ---"
+          ls -l "$APP/PlugIns/BroadcastExtension.appex/" || true
+          echo "--- 鍏抽敭瀛楃涓诧紙9300/9200锛?--"
+          strings "$APP/ScreenSender" | grep -E '^(9300|9200)$' || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shenmu-self-ipa
+          path: dist/绁炵洰鎶曞睆_绾嚜鐮?ipa
+          if-no-files-found: error
