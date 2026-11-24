@@ -1,0 +1,78 @@
+name: build-self
+
+# 纯自研版：ScreenSender(9300 触控 + 9200 画面) + BroadcastExtension(H.264)
+# 不依赖 WDA / Panda / ATHelper，最低系统 iOS 12.0
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ScreenSender/**'
+      - 'BroadcastExtension/**'
+      - 'Shared/**'
+      - 'WdaRelay/SmRelayServer.swift'
+      - 'WdaRelay/SmTouchBridge.swift'
+      - 'project.yml'
+      - '.github/workflows/build-self.yml'
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 环境信息
+        run: |
+          xcodebuild -version
+          sw_vers
+
+      - name: 安装 xcodegen
+        run: brew install xcodegen
+
+      - name: 生成工程
+        run: xcodegen generate
+
+      - name: 编译 ScreenSender（含 BroadcastExtension）
+        run: |
+          set -o pipefail
+          xcodebuild -project ScreenSender.xcodeproj \
+            -target ScreenSender -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            SYMROOT="$PWD/out" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            IPHONEOS_DEPLOYMENT_TARGET=12.0 \
+            build 2>&1 | tail -60
+
+      - name: 组装未签名 IPA
+        run: |
+          set -e
+          APP=$(find out -name 'ScreenSender.app' -type d | head -1)
+          echo "app=$APP"
+          test -d "$APP"
+          mkdir -p dist/Payload
+          cp -R "$APP" dist/Payload/
+          # 去掉签名残留与 dSYM，方便 Sideloadly 直接签
+          find dist/Payload -name '_CodeSignature' -type d -prune -exec rm -rf {} + || true
+          find dist/Payload -name '*.dSYM' -type d -prune -exec rm -rf {} + || true
+          find dist/Payload -name 'embedded.mobileprovision' -delete || true
+          cd dist && zip -qry 神目投屏_纯自研.ipa Payload
+          ls -lh 神目投屏_纯自研.ipa
+
+      - name: 校验产物
+        run: |
+          set -e
+          IPA=dist/神目投屏_纯自研.ipa
+          unzip -l "$IPA" | head -40
+          APP=dist/Payload/ScreenSender.app
+          echo "--- 主程序最低系统 ---"
+          otool -l "$APP/ScreenSender" | grep -A3 LC_BUILD_VERSION | head -8 || true
+          echo "--- 扩展 ---"
+          ls -l "$APP/PlugIns/BroadcastExtension.appex/" || true
+          echo "--- 关键字符串（9300/9200）---"
+          strings "$APP/ScreenSender" | grep -E '^(9300|9200)$' || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shenmu-self-ipa
+          path: dist/神目投屏_纯自研.ipa
+          if-no-files-found: error
