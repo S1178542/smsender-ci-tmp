@@ -1,0 +1,93 @@
+name: ScreenSender
+options:
+  bundleIdPrefix: com.shenmu
+  deploymentTarget:
+    iOS: "12.0"
+  createIntermediateGroups: true
+  minimumXcodeGenVersion: "2.20.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "12.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+    ENABLE_BITCODE: "NO"
+    ONLY_ACTIVE_ARCH: "NO"
+
+targets:
+  ScreenSender:
+    type: application
+    platform: iOS
+    sources:
+      - path: ScreenSender
+      - path: Shared
+    dependencies:
+      - target: BroadcastExtension
+        embed: true
+    info:
+      path: ScreenSender/Info.plist
+      properties:
+        CFBundleDisplayName: 神目投屏
+        CFBundleShortVersionString: "1.0.0"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        UIBackgroundModes:
+          - audio
+        UIRequiresFullScreen: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.shenmu.screensender
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_OBJC_BRIDGING_HEADER: Shared/Bridging-Header.h
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: "NO"
+
+  BroadcastExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: BroadcastExtension
+      - path: Shared
+        excludes:
+          - TouchInjector.m
+          - TouchInjector.h
+          - Bridging-Header.h
+      # 9200 视频中继 + 9300 触控桥直接在扩展进程里跑，不再依赖注入 dylib
+      - path: WdaRelay
+        includes:
+          - SmRelayServer.swift
+          - SmTouchBridge.swift
+    info:
+      path: BroadcastExtension/Info.plist
+      properties:
+        CFBundleDisplayName: 神目投屏
+        CFBundleShortVersionString: "1.0.0"
+        CFBundleVersion: "1"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.broadcast-services-upload
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SampleHandler
+          RPBroadcastProcessMode: RPBroadcastProcessModeSampleBuffer
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSLocalNetworkUsageDescription: 神目投屏需要本地网络访问，用于与电脑端建立投屏与触控连接。
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.shenmu.screensender.broadcast
+
+  SmRelay:
+    type: library.dynamic
+    platform: iOS
+    sources:
+      - path: WdaRelay
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.shenmu.screensender.relay
+        PRODUCT_NAME: SmRelay
+        EXECUTABLE_PREFIX: ""
+        LD_DYLIB_INSTALL_NAME: "@executable_path/Frameworks/SmRelay.dylib"
+        SWIFT_INSTALL_OBJC_HEADER: "NO"
+        DEAD_CODE_STRIPPING: "NO"
+        IPHONEOS_DEPLOYMENT_TARGET: "12.0"
