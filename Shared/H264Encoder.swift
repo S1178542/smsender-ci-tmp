@@ -12,6 +12,7 @@ final class H264Encoder {
     private var width: Int32 = 0
     private var height: Int32 = 0
     private var sentParams = false
+    private var loggedFirst = false
     private let onConfig: ConfigSink
     private let onFrame: FrameSink
     private let bitrate: Int = 6_000_000
@@ -46,6 +47,7 @@ final class H264Encoder {
             refcon: nil,
             compressionSessionOut: &s
         )
+        NSLog("[SM-ENC] create session \(width)x\(height) status=\(status)")
         guard status == noErr, let session = s else { return }
         self.session = session
         self.width = width
@@ -87,6 +89,7 @@ final class H264Encoder {
     }
 
     private func handle(_ sb: CMSampleBuffer, ptsMs: UInt32, isKey: Bool) {
+        if !loggedFirst { loggedFirst = true; NSLog("[SM-ENC] first output key=\(isKey)") }
         if !sentParams, let fmt = CMSampleBufferGetFormatDescription(sb) {
             var sps = Data(), pps = Data()
             var count = 0
