@@ -2,14 +2,14 @@ name: ScreenSender
 options:
   bundleIdPrefix: com.shenmu
   deploymentTarget:
-    iOS: "12.0"
+    iOS: "11.0"
   createIntermediateGroups: true
   minimumXcodeGenVersion: "2.20.0"
 
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    IPHONEOS_DEPLOYMENT_TARGET: "12.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "11.0"
     TARGETED_DEVICE_FAMILY: "1,2"
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: ""
@@ -56,10 +56,7 @@ targets:
           - TouchInjector.h
           - Bridging-Header.h
       # 9200 视频中继 + 9300 触控桥直接在扩展进程里跑，不再依赖注入 dylib
-      - path: WdaRelay
-        includes:
-          - SmRelayServer.swift
-          - SmTouchBridge.swift
+
     info:
       path: BroadcastExtension/Info.plist
       properties:
@@ -76,18 +73,3 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shenmu.screensender.broadcast
-
-  SmRelay:
-    type: library.dynamic
-    platform: iOS
-    sources:
-      - path: WdaRelay
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.shenmu.screensender.relay
-        PRODUCT_NAME: SmRelay
-        EXECUTABLE_PREFIX: ""
-        LD_DYLIB_INSTALL_NAME: "@executable_path/Frameworks/SmRelay.dylib"
-        SWIFT_INSTALL_OBJC_HEADER: "NO"
-        DEAD_CODE_STRIPPING: "NO"
-        IPHONEOS_DEPLOYMENT_TARGET: "12.0"
