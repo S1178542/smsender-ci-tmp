@@ -1,0 +1,18 @@
+# Cirrus CI：公开仓库免费提供 macOS 机器（不需要绑卡）
+task:
+  name: build-ios-ipa
+  macos_instance:
+    image: ghcr.io/cirruslabs/macos-sonoma-xcode:latest
+  install_script:
+    - brew install xcodegen
+  build_script:
+    - xcodegen generate
+    - xcodebuild -project ScreenSender.xcodeproj -target ScreenSender -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' SYMROOT="\C:\Users\Administrator\Documents\deepseek-harness\default-workspace/out" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" IPHONEOS_DEPLOYMENT_TARGET=11.0 build | tail -40
+  package_script:
+    - APP=\
+    - mkdir -p dist/Payload && cp -R "\" dist/Payload/
+    - find dist/Payload -name '_CodeSignature' -type d -prune -exec rm -rf {} + || true
+    - find dist/Payload -name '*.dSYM' -type d -prune -exec rm -rf {} + || true
+    - cd dist && zip -qry 神目投屏_纯自研.ipa Payload && ls -lh *.ipa
+  artifacts:
+    path: dist/神目投屏_纯自研.ipa
