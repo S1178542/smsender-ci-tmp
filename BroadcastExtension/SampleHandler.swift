@@ -12,6 +12,7 @@ final class SampleHandler: RPBroadcastSampleHandler {
     private var frameCount = 0
 
     override func broadcastStarted(withSetupInfo: [String: NSObject]?) {
+        NSLog("[SM] broadcastStarted")
         frameCount = 0
         server.start(port: 9200)
         encoder = H264Encoder(onConfig: { [weak self] sps, pps in self?.server.sendConfig(sps: sps, pps: pps) }, onFrame: { [weak self] data, pts, key in self?.server.sendFrame(data, ptsMs: pts, key: key) })
@@ -26,6 +27,12 @@ final class SampleHandler: RPBroadcastSampleHandler {
     }
 
     override func processSampleBuffer(_ sampleBuffer: CMSampleBuffer, with sampleBufferType: RPSampleBufferType) {
+        if sampleBufferType == .video && frameCount < 3 {
+            let pb = CMSampleBufferGetImageBuffer(sampleBuffer)
+            let w = pb.map { CVPixelBufferGetWidth($0) } ?? 0
+            let h = pb.map { CVPixelBufferGetHeight($0) } ?? 0
+            NSLog("[SM] video sample #\(frameCount) \(w)x\(h)")
+        }
         guard sampleBufferType == .video else { return }
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         if encoder == nil { encoder = H264Encoder(onConfig: { [weak self] sps, pps in self?.server.sendConfig(sps: sps, pps: pps) }, onFrame: { [weak self] data, pts, key in self?.server.sendFrame(data, ptsMs: pts, key: key) }) }
